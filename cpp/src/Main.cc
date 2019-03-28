@@ -220,6 +220,16 @@ doInteriorSamplingThread(Parameters const * parameters,
 			 ResultsInterior * resultsInterior);
 
 void
+doVirialSamplingThread(Parameters const * parameters,
+                         BoundingSphere const * boundingSphere,
+                         Model const * insideOutsideTester,
+                         int threadNum,
+                         long long numSamples,
+                         Timer const * totalTimer,
+                         RandomNumberGenerator * randomNumberGenerators,
+                         ResultsInterior * resultsInterior);
+
+void
 printOutput(BoundingSphere const & boundingSphere,
 	    ResultsInterior const * resultsInterior,
 	    ResultsZeno const * resultsZeno,
@@ -1162,6 +1172,106 @@ doInteriorSamplingThread(Parameters const * parameters,
       break;
     }
   }
+}
+
+/// Launches a set of virial-coefficient samples in each of a set of parallel
+/// threads.
+///
+void
+doVirialSampling(Parameters const & parameters,
+                   long long numSamplesInProcess,
+                   BoundingSphere const & boundingSphere,
+                   Model const & insideOutsideTester,
+                   Timer const & totalTimer,
+                   std::vector<RandomNumberGenerator> * threadRNGs,
+                   ResultsInterior * resultsInterior,
+                   double * sampleTime) {
+
+    Timer sampleTimer;
+    sampleTimer.start();
+
+    const int numThreads = parameters.getNumThreads();
+
+    std::thread * * threads = new std::thread *[numThreads];
+
+    for (int threadNum = 0; threadNum < numThreads; threadNum++) {
+
+        long long numSamplesInThread = numSamplesInProcess / numThreads;
+
+        if (threadNum < numSamplesInProcess % numThreads) {
+            numSamplesInThread ++;
+        }
+
+        threads[threadNum] =
+                new std::thread(doVirialSamplingThread,
+                                &parameters,
+                                &boundingSphere,
+                                &insideOutsideTester,
+                                threadNum,
+                                numSamplesInThread,
+                                &totalTimer,
+                                &(threadRNGs->at(threadNum)),
+                                resultsInterior);
+    }
+
+    for (int threadNum = 0; threadNum < numThreads; threadNum++) {
+        threads[threadNum]->join();
+    }
+
+    for (int threadNum = 0; threadNum < numThreads; threadNum++) {
+        delete threads[threadNum];
+    }
+
+    delete [] threads;
+
+    sampleTimer.stop();
+    *sampleTime += sampleTimer.getTime();
+}
+
+/// Performs a given number of virial-coefficient samples and records the results.
+/// Runs in a single thread.
+///
+void
+doVirialSamplingThread(Parameters const * parameters,
+                         BoundingSphere const * boundingSphere,
+                         Model const * insideOutsideTester,
+                         int threadNum,
+                         long long numSamples,
+                         Timer const * totalTimer,
+                         RandomNumberGenerator * randomNumberGenerator,
+                         ResultsInterior * resultsInterior) {
+
+    SamplerVirial<double,
+            RandomNumberGenerator,
+            Model,
+            RandomBallPointGenerator>
+            sampler(randomNumberGenerator,
+                    *boundingSphere,
+                    *insideOutsideTester);
+
+    for (long long sampleNum = 0; sampleNum < numSamples; sampleNum++) {
+
+        bool hitObject = false;
+
+        Vector3<double> hitPoint;
+
+        sampler.sample(&hitObject,
+                       &hitPoint);
+
+        if (hitObject) {
+            resultsInterior->recordHit(threadNum,
+                                       hitPoint);
+        }
+        else {
+            resultsInterior->recordMiss(threadNum);
+        }
+
+        if (parameters->getMaxRunTimeWasSet() &&
+            (totalTimer->getTime() > parameters->getMaxRunTime())) {
+
+            break;
+        }
+    }
 }
 
 /// Prints parameters, results, and (optionally) detailed running time
