@@ -31,8 +31,8 @@
 
 // ================================================================
 // 
-// Authors: Derek Juba <derek.juba@nist.gov>
-// Created: Fri Feb 13 13:31:22 2015 EDT
+// Authors:
+// Created:
 //
 // ================================================================
 
@@ -43,9 +43,9 @@
 
 #include "../Geometry/Sphere.h"
 #include "../Geometry/Vector3.h"
+#include <cmath>
 
-/// Samples random points inside a bounding sphere and determines whether they
-/// hit an object, allowing for a given relative error in distance.
+/// Performs calculations to obtain virial coefficients.
 ///
 template <class T,
   class RandomNumberGenerator,
@@ -65,7 +65,9 @@ class SamplerVirial {
   ~SamplerVirial();
 
   void go(long long nSamples,
-          double alpha);
+          double alpha,
+          bool equilibrating,
+          double refStepFrac);
 
  private:
   Parameters const * parameters;
@@ -111,7 +113,7 @@ SamplerVirial<T,
 
 }
 
-/// Compute a random point and determine whether it hits the object.
+/// Computes something.
 ///
 template <class T,
   class RandomNumberGenerator>
@@ -119,15 +121,36 @@ void
 SamplerVirial<T,
                RandomNumberGenerator>::
   go(long long nSamples,
-     double alpha) {
+     double alpha,
+     bool equilibrating,
+     double refStepFrac) {
 
-  Vector3<T> position =
-    RandomBallPointGenerator::generate(randomNumberGenerator, *boundingSphere);
+    int numTargetBlocks = 0, numReferenceBlocks = 0;
+    int nBlocks = 1000;
 
-  *hitObject =
-    insideOutsideTester->contains(position);
+    if (nSamples < 100)
+    {
+        nBlocks = 1;
+    }
+    else if(nSamples < 1000)
+    {
+        nBlocks = 10;
+    }
+    else if(nSamples < 10000)
+    {
+        nBlocks = 100;
+    }
 
-  *hitPoint = position;
+   for(int step = 0; step < nBlocks; ++step)
+   {
+       bool runTarget = step*refStepFrac < numReferenceBlocks;
+       for(long long subStep = 0; subStep < nSamples / nBlocks; ++subStep)
+       {
+
+       }
+       if(runTarget) ++numTargetBlocks;
+       else ++numReferenceBlocks;
+   }
 }
 
 #endif
