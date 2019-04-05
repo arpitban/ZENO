@@ -50,20 +50,38 @@
 template <class T>
 class MCMove {
  public:
-    MCMove(IntegratorMSMC<T> & integratorMsmc);
+    MCMove(IntegratorMSMC<T> & integratorMSMC);
   virtual ~MCMove();
-
   virtual void doTrial() = 0;
+  double getStepSize();
+  void setStepSize();
 
 protected:
-    IntegratorMSMC & integratorMsmc;
+    IntegratorMSMC & integratorMSMC;
     double stepSize;
+    void adjustStepSize();
+    double maxStepSize;
+    long numTrials, numAccepted;
+    double chiSum;
+    double adjustInterval;
+    int lastAdjust;
+    double adjustStep, minAdjustStep;
 };
 
 template <class T>
 MCMove<T>::
-MCMove(IntegratorMSMC<T> & integratorMsmc) : integratorMsmc(integratorMsmc)
+MCMove(IntegratorMSMC<T> & integratorMSMC) : integratorMSMC(integratorMSMC)
               {
+    numTrials = 0;
+    numAccepted = 0;
+    chiSum = 0;
+    lastAdjust = 0;
+    adjustInterval = 100;
+    adjustStep = 1.05;
+    minAdjustStep = 1;
+    verboseAdjust = false;
+    tunable = true;
+    maxStepSize = 0;
 }
 
 template <class T>
@@ -71,10 +89,10 @@ MCMove<T>::
   ~MCMove() {
 }
 
-<T>
+template <class T>
 class MCMoveTranslate : public MCMove {
 public:
-      MCMoveTranslate(IntegratorMSMC<T> & integratorMsmc);
+      MCMoveTranslate(IntegratorMSMC<T> & integratorMSMC);
       ~MCMoveTranslate();
 
       void doTrial();
@@ -83,10 +101,10 @@ public:
 
 template <class T>
 MCMoveTranslate<T>::
-MCMoveTranslate(IntegratorMSMC<T> & integratorMsmc) : MCMove(integratorMsmc)
+MCMoveTranslate(IntegratorMSMC<T> & integratorMSMC) : MCMove(integratorMSMC)
 {
-    stepSize = cbrt(integratorMsmc.getMolecules()[0]->numSpheres())*integratorMsmc.getMolecules()[0]->getModel().getSpheres()->at(0).getRadius();
-
+    stepSize = cbrt(integratorMSMC.getParticles()[0]->numSpheres())*integratorMSMC.getParticles()[0]->getModel().getSpheres()->at(0).getRadius();
+    maxStepSize = 1000;
 }
 
 template <class T>
@@ -94,37 +112,161 @@ MCMoveTranslate<T>::
 ~MCMoveTranslate() {
 }
 
-<T>
+template <class T>
 void MCMoveTranslate<T>::
 doTrial(){
+    if (tunable && numTrials >= adjustInterval) {
+        adjustStepSize();
+    }
     double oldValue = clusterSum.value();
     if(oldValue == 0){
         std::cerr << "Old Value is zero " << std::endl;
         exit(1);
     }
-    std::vector<Vector3<T>> step(integratorMsmc.molecules->size() - 1);
-    for(int j = 0; j < (integratorMsmc.molecules->size() - 1); ++j)
+    std::vector<Vector3<T>> step(integratorMSMC.particles->size() - 1);
+    for(int j = 0; j < (integratorMSMC.particles->size() - 1); ++j)
     {
         for(int i = 0; i < 3; ++i)
         {
-            step[j].set(i, (integratorMsmc.getRandomNumberGenerator()->getRandIn01() - 0.5) * stepSize);
+            step[j].set(i, (integratorMSMC.getRandomNumberGenerator()->getRandIn01() - 0.5) * stepSize);
         }
-        integratorMsmc.getMolecules()[j+1]->translateBy(step[j]);
+        integratorMSMC.getParticles()[j+1]->translateBy(step[j]);
     }
     double newValue = clusterSum.value();
     double ratio = newValue / oldValue;
 
-    if((ratio < 1) && (ratio < integratorMsmc.getRandomNumberGenerator()->getRandIn01()))
+    if((ratio < 1) && (ratio < integratorMSMC.getRandomNumberGenerator()->getRandIn01()))
     {
-        for(int j = 0; j < (integratorMsmc.molecules->size() - 1); ++j)
+        for(int j = 0; j < (integratorMSMC.particles->size() - 1); ++j)
         {
             step[j] *= -1;
-            integratorMsmc.getMolecules()[j+1]->translateBy(step[j]);
-        } 
+            integratorMSMC.getParticles()[j+1]->translateBy(step[j]);
+        }
     }
 }
-/// Defines particles using assembly of spheres with mutable center and orientation.
-///
+
+
+template <class T>
+class MCMoveRotate : public MCMove {
+public:
+    MCMoveRotate(IntegratorMSMC<T> & integratorMSMC);
+    ~MCMoveRotate();
+
+    void doTrial();
+
+};
+
+template <class T>
+MCMoveRotate<T>::
+MCMoveRotate(IntegratorMSMC<T> & integratorMSMC) : MCMove(integratorMSMC)
+{
+    stepSize = M_PI/4;
+    maxStepSize = M_PI/2;
+}
+
+template <class T>
+MCMoveRotate<T>::
+~MCMoveRotate() {
+}
+
+template <class T>
+void MCMoveRotate<T>::
+doTrial(){
+    if (tunable && numTrials >= adjustInterval) {
+        adjustStepSize();
+    }
+    double oldValue = clusterSum.value();
+    if(oldValue == 0){
+        std::cerr << "Old Value is zero " << std::endl;
+        exit(1);
+    }
+    std::vector<Vector3<T>> axis(integratorMSMC.particles->size() - 1);
+    std::vector<double> angle(integratorMSMC.particles->size() - 1);
+    for(int j = 0; j < (integratorMSMC.particles->size() - 1); ++j)
+    {
+        angle[j].set(i, (integratorMSMC.getRandomNumberGenerator()->getRandIn01() - 0.5) * stepSize);
+        integratorMSMC.getRandomUtilities()->setRandomOnSphere(axis[j]);
+        integratorMSMC.getParticles()[j+1]->rotateBy(axis[j], angle[j]);
+    }
+    double newValue = clusterSum.value();
+    double ratio = newValue / oldValue;
+
+    if((ratio < 1) && (ratio < integratorMSMC.getRandomNumberGenerator()->getRandIn01()))
+    {
+        for(int j = 0; j < (integratorMSMC.particles->size() - 1); ++j)
+        {
+            integratorMSMC.getParticles()[j+1]->rotateBy(axis[j], -angle[j]);
+        }
+    }
+}
+
+template <class T>
+void MCMove<T>::
+adjustStepSize(){
+    double avg = chiSum/numTrials;
+    if (avg > 0.5) {
+        if (stepSize < maxStepSize) {
+            if (lastAdjust < 0) {
+                // back and forth
+                adjustInterval *= 2;
+                adjustStep = sqrt(adjustStep);
+            }
+            else if (lastAdjust == 5) {
+                // sixth consecutive increase; increase adjustment step
+                adjustStep *= adjustStep;
+                if (adjustStep > 2) {
+                    adjustStep = 2;
+                }
+                lastAdjust = 3;
+            }
+            stepSize *= adjustStep;
+            stepSize = std::min(stepSize, maxStepSize);
+            /*if (verboseAdjust) {
+                printf("move increasing step size: %f (<chi> = %f)\n", stepSize, avg);
+            }*/
+            if (lastAdjust < 1) lastAdjust = 1;
+            else lastAdjust++;
+        }
+        /*else if (verboseAdjust) {
+            printf("move step size: %f (<chi> = %f\n)", stepSize, avg);
+        }*/
+    }
+    else {
+        if (lastAdjust > 0) {
+            // back and forth
+            adjustInterval *= 2;
+            adjustStep = sqrt(adjustStep);
+        }
+        else if (lastAdjust == -5) {
+            // sixth consecutive increase; increase adjustment step
+            adjustStep *= adjustStep;
+            if (adjustStep > 2) {
+                adjustStep = 2;
+            }
+            lastAdjust = -3;
+        }
+        stepSize /= adjustStep;
+        /*if (verboseAdjust) {
+            printf("move decreasing step size: %f (<chi> = %f)\n", stepSize, avg);
+        }*/
+        if (lastAdjust > -1) lastAdjust = -1;
+        else lastAdjust--;
+    }
+    numTrials = numAccepted = 0;
+    chiSum = 0;
+}
+
+template <class T>
+double MCMove<T>::
+getStepSize() {
+    return stepSize;
+}
+
+template <class T>
+void MCMove<T>::
+setStepSize(double sS) {
+    stepSize = sS;
+}
 
 #endif
 
