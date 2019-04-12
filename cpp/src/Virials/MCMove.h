@@ -201,6 +201,43 @@ doTrial(){
 }
 
 template <class T>
+class MCMoveChainVirial : public MCMove {
+public:
+    MCMoveChainVirial(IntegratorMSMC<T> & integratorMSMC);
+    ~MCMoveChainVirial();
+    void doTrial();
+
+protected:
+    double sigma;
+};
+
+template <class T>
+MCMoveChainVirial<T>::
+MCMoveChainVirial(IntegratorMSMC<T> & integratorMSMC, double sigma): MCMove(integratorMSMC), sigma(sigma)
+{
+}
+
+template <class T>
+MCMoveChainVirial<T>::
+~MCMoveChainVirial() {
+}
+
+template <class T>
+void MCMoveChainVirial<T>::
+doTrial() {
+    const Vector3 rPrev = integratorMSMC.getParticles()[0]->getCenter();
+    Vector3 sPrev = rPrev;
+    for(int j = 1; j < (integratorMSMC.particles->size() - 1); ++j)
+    {
+        const Vector3 r = integratorMSMC.getParticles()[j]->getCenter();
+        integratorMSMC.getRandomUtilities()->setRandomInSphere(r);
+        Vector3 s = r*sigma + sPrev;
+        integratorMSMC.getParticles()[j]->setCenter(s);
+         sPrev = s;
+    }
+}
+
+template <class T>
 void MCMove<T>::
 adjustStepSize(){
     double avg = chiSum/numTrials;
