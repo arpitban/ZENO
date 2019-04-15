@@ -40,17 +40,15 @@
 #define SAMPLER_VIRIAL_H
 
 #include <vector>
+#include <cmath>
 
 #include "../Geometry/Sphere.h"
 #include "../Geometry/Vector3.h"
-#include <cmath>
+#include "../Timer.h"
 
 /// Performs calculations to obtain virial coefficients.
-///
 template <class T,
-  class RandomNumberGenerator,
-  class InsideOutsideTester,
-  class RandomBallPointGenerator>
+  class RandomNumberGenerator>
 class SamplerVirial {
  public:
   SamplerVirial(Parameters const * parameters,
@@ -84,14 +82,14 @@ template <class T,
   class RandomNumberGenerator>
 SamplerVirial<T,
                RandomNumberGenerator>::
-  SamplerVirial((Parameters const * parameters,
+  SamplerVirial(Parameters const * parameters,
                 int threadNum,
                 Timer const * totalTimer,
                 RandomNumberGenerator * randomNumberGenerator,
                 std::vector<Sphere<double> *> & boundingSpheres,
                 std::vector<int> & numParticles,
                 std::vector<MixedModel<T> *> & particles,
-                OverlapTester const & overlapTester)) :
+                OverlapTester const & overlapTester) :
               parameters(parameters),
               threadNum(threadNum),
               totalTimer(totalTimer),
@@ -104,9 +102,7 @@ SamplerVirial<T,
 }
 
 template <class T,
-  class RandomNumberGenerator,
-  class InsideOutsideTester,
-  class RandomBallPointGenerator>
+  class RandomNumberGenerator>
 SamplerVirial<T,
                RandomNumberGenerator>::
   ~SamplerVirial() {

@@ -40,60 +40,68 @@
 #define CLUSTER_SUM_H
 
 #include <vector>
+#include <cmath>
 
 #include "../Geometry/Sphere.h"
 #include "../Geometry/Vector3.h"
-#include <cmath>
+#include "IntegratorMSMC.h"
 
 /// Defines particles using assembly of spheres with mutable center and orientation.
 ///
-template <class T>
+template <class T,
+        class RandomNumberGenerator>
 class ClusterSum {
  public:
-    ClusterSum(IntegratorMSMC<T> & integratorMSMC, OverlapTester const & overlapTester);
+    ClusterSum(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
     virtual ~ClusterSum();
     virtual double value();
 
  private:
-    OverlapTester const & overlapTester;
+    OverlapTester<T> const & overlapTester;
+    IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC;
 };
 
-template <class T>
-ClusterSum<T>::
-ClusterSum(IntegratorMSMC<T> & integratorMSMC, OverlapTester const & overlapTester):
-integratorMSMC(integratorMSMC)
+template <class T,
+        class RandomNumberGenerator>
+ClusterSum<T, RandomNumberGenerator>::
+ClusterSum(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester):
+integratorMSMC(integratorMSMC),
 overlapTester(overlapTester){
 }
 
-template <class T>
-ClusterSum<T>::
+template <class T,
+        class RandomNumberGenerator>
+ClusterSum<T, RandomNumberGenerator>::
   ~ClusterSum() {
 }
 
 ///
 ///
 
-template <class T>
-class ClusterSumChain : public ClusterSum {
+template <class T,
+        class RandomNumberGenerator>
+class ClusterSumChain : public ClusterSum<T, RandomNumberGenerator> {
 public:
-    ClusterSumChain(IntegratorMSMC<T> & integratorMSMC, OverlapTester const & overlapTester);
+    ClusterSumChain(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
     ~ClusterSumChain();
     double value();
 };
 
-template <class T>
-ClusterSum<T>::
-ClusterSumChain(IntegratorMSMC<T> & integratorMSMC, OverlapTester const & overlapTester):
+template <class T,
+        class RandomNumberGenerator>
+ClusterSumChain<T, RandomNumberGenerator>::
+ClusterSumChain(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester):
         ClusterSum(integratorMSMC, overlapTester){
 }
 
-template <class T>
-ClusterSumChain<T>::
+template <class T,
+        class RandomNumberGenerator>
+ClusterSumChain<T, RandomNumberGenerator>::
 ~ClusterSumChain() {
 }
 
 double
-ClusterSumChain<T>::
+ClusterSumChain<T, RandomNumberGenerator>::
 value(){
     const int n = integratorMSMC->getParticles()->size();
     const int nf1 = (1 << (n - 1));

@@ -69,6 +69,15 @@
 #include "Walker/WalkerExterior.h"
 #include "Walker/SamplerInterior.h"
 
+#include "Virials/Particle.h"
+#include "Virials/OverlapTester.h"
+#include "Virials/RandomUtilities.h"
+#include "Virials/ClusterSum.h"
+#include "Virials/SamplerVirial.h"
+#include "Virials/IntegratorMSMC.h"
+#include "Virials/MCMove.h"
+
+
 #include "Timer.h"
 
 // ================================================================
@@ -1173,7 +1182,7 @@ doInteriorSamplingThread(Parameters const * parameters,
     }
   }
 }
-
+/*
 /// Launches a set of virial-coefficient samples in each of a set of parallel
 /// threads.
 ///
@@ -1272,7 +1281,7 @@ doVirialSamplingThread(Parameters const * parameters,
             break;
         }
     }
-}
+}*/
 
 /// Prints parameters, results, and (optionally) detailed running time
 /// benchmarks on MPI process 0.

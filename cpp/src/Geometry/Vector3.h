@@ -159,6 +159,7 @@ class Vector3
   eleT invSqrt(eleT x);
 
   eleT components[3];
+
 };
 
 template <class eleT>

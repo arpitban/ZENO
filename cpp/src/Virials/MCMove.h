@@ -40,10 +40,10 @@
 #define MC_MOVE_H
 
 #include <vector>
+#include <cmath>
 
 #include "../Geometry/Sphere.h"
 #include "../Geometry/Vector3.h"
-#include <cmath>
 
 /// Defines particles using assembly of spheres with mutable center and orientation.
 ///
