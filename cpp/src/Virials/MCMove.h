@@ -44,20 +44,22 @@
 
 #include "../Geometry/Sphere.h"
 #include "../Geometry/Vector3.h"
+#include "IntegratorMSMC.h"
 
 /// Defines particles using assembly of spheres with mutable center and orientation.
 ///
-template <class T>
+template <class T,
+        class RandomNumberGenerator>
 class MCMove {
  public:
-    MCMove(IntegratorMSMC<T> & integratorMSMC);
+    MCMove(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC);
   virtual ~MCMove();
   virtual void doTrial() = 0;
   double getStepSize();
-  void setStepSize();
+  void setStepSize(double sS);
 
 protected:
-    IntegratorMSMC & integratorMSMC;
+    IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC;
     double stepSize;
     void adjustStepSize();
     double maxStepSize;
@@ -66,12 +68,16 @@ protected:
     double adjustInterval;
     int lastAdjust;
     double adjustStep, minAdjustStep;
+    bool verboseAdjust, tunable;
+    
 };
 
-template <class T>
-MCMove<T>::
-MCMove(IntegratorMSMC<T> & integratorMSMC) : integratorMSMC(integratorMSMC)
+template <class T,
+        class RandomNumberGenerator>
+MCMove<T, RandomNumberGenerator>::
+MCMove(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC) : integratorMSMC(integratorMSMC)
               {
+    stepSize = 0;
     numTrials = 0;
     numAccepted = 0;
     chiSum = 0;
@@ -84,126 +90,134 @@ MCMove(IntegratorMSMC<T> & integratorMSMC) : integratorMSMC(integratorMSMC)
     maxStepSize = 0;
 }
 
-template <class T>
-MCMove<T>::
+template <class T,
+        class RandomNumberGenerator>
+MCMove<T, RandomNumberGenerator>::
   ~MCMove() {
 }
 
-template <class T>
-class MCMoveTranslate : public MCMove {
+template <class T,
+        class RandomNumberGenerator>
+class MCMoveTranslate : public MCMove<T, RandomNumberGenerator> {
 public:
-      MCMoveTranslate(IntegratorMSMC<T> & integratorMSMC);
+      MCMoveTranslate(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC);
       ~MCMoveTranslate();
 
       void doTrial();
 
  };
 
-template <class T>
-MCMoveTranslate<T>::
-MCMoveTranslate(IntegratorMSMC<T> & integratorMSMC) : MCMove(integratorMSMC)
+template <class T, 
+        class RandomNumberGenerator>
+MCMoveTranslate<T, RandomNumberGenerator>::
+MCMoveTranslate(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC) : MCMove<T, RandomNumberGenerator>(integratorMSMC)
 {
-    stepSize = cbrt(integratorMSMC.getParticles()[0]->numSpheres())*integratorMSMC.getParticles()[0]->getModel().getSpheres()->at(0).getRadius();
-    maxStepSize = 1000;
+    MCMove<T, RandomNumberGenerator>::stepSize = cbrt(integratorMSMC.getParticles()[0]->numSpheres())*integratorMSMC.getParticles()[0]->getModel().getSpheres()->at(0).getRadius();
+    MCMove<T, RandomNumberGenerator>::maxStepSize = 1000;
 }
 
-template <class T>
-MCMoveTranslate<T>::
+template <class T,
+        class RandomNumberGenerator>
+MCMoveTranslate<T, RandomNumberGenerator>::
 ~MCMoveTranslate() {
 }
 
-template <class T>
-void MCMoveTranslate<T>::
+template <class T,
+        class RandomNumberGenerator>
+void MCMoveTranslate<T, RandomNumberGenerator>::
 doTrial(){
-    if (tunable && numTrials >= adjustInterval) {
-        adjustStepSize();
+    if (MCMove<T, RandomNumberGenerator>::tunable && MCMove<T, RandomNumberGenerator>::numTrials >= MCMove<T, RandomNumberGenerator>::adjustInterval) {
+        MCMove<T, RandomNumberGenerator>::adjustStepSize();
     }
-    double oldValue = clusterSum.value();
+    double oldValue = MCMove<T, RandomNumberGenerator>::clusterSum.value();
     if(oldValue == 0){
         std::cerr << "Old Value is zero " << std::endl;
         exit(1);
     }
-    std::vector<Vector3<T>> step(integratorMSMC.particles->size() - 1);
-    for(int j = 0; j < (integratorMSMC.particles->size() - 1); ++j)
+    std::vector<Vector3<T>> step(MCMove<T, RandomNumberGenerator>::integratorMSMC.particles->size() - 1);
+    for(int j = 0; j < (MCMove<T, RandomNumberGenerator>::integratorMSMC.particles->size() - 1); ++j)
     {
         for(int i = 0; i < 3; ++i)
         {
-            step[j].set(i, (integratorMSMC.getRandomNumberGenerator()->getRandIn01() - 0.5) * stepSize);
+            MCMove<T, RandomNumberGenerator>::step[j].set(i, (MCMove<T, RandomNumberGenerator>::integratorMSMC.getRandomNumberGenerator()->getRandIn01() - 0.5) * MCMove<T, RandomNumberGenerator>::stepSize);
         }
-        integratorMSMC.getParticles()[j+1]->translateBy(step[j]);
+        MCMove<T, RandomNumberGenerator>::integratorMSMC.getParticles()[j+1]->translateBy(step[j]);
     }
-    double newValue = clusterSum.value();
+    double newValue = MCMove<T, RandomNumberGenerator>::clusterSum.value();
     double ratio = newValue / oldValue;
 
-    if((ratio < 1) && (ratio < integratorMSMC.getRandomNumberGenerator()->getRandIn01()))
+    if((ratio < 1) && (ratio < MCMove<T, RandomNumberGenerator>::integratorMSMC.getRandomNumberGenerator()->getRandIn01()))
     {
-        for(int j = 0; j < (integratorMSMC.particles->size() - 1); ++j)
+        for(int j = 0; j < (MCMove<T, RandomNumberGenerator>::integratorMSMC.particles->size() - 1); ++j)
         {
-            step[j] *= -1;
-            integratorMSMC.getParticles()[j+1]->translateBy(step[j]);
+            MCMove<T, RandomNumberGenerator>::step[j] *= -1;
+            MCMove<T, RandomNumberGenerator>::integratorMSMC.getParticles()[j+1]->translateBy(step[j]);
         }
     }
 }
 
 
-template <class T>
-class MCMoveRotate : public MCMove {
+template <class T,
+        class RandomNumberGenerator>
+class MCMoveRotate : public MCMove<T, RandomNumberGenerator> {
 public:
-    MCMoveRotate(IntegratorMSMC<T> & integratorMSMC);
+    MCMoveRotate(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC);
     ~MCMoveRotate();
 
     void doTrial();
 
 };
 
-template <class T>
-MCMoveRotate<T>::
-MCMoveRotate(IntegratorMSMC<T> & integratorMSMC) : MCMove(integratorMSMC)
+template <class T,
+        class RandomNumberGenerator>
+MCMoveRotate<T, RandomNumberGenerator>::
+MCMoveRotate(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC) : MCMove<T, RandomNumberGenerator>(integratorMSMC)
 {
-    stepSize = M_PI/4;
-    maxStepSize = M_PI/2;
+    MCMove<T, RandomNumberGenerator>::stepSize = M_PI/4;
+    MCMove<T, RandomNumberGenerator>::maxStepSize = M_PI/2;
 }
 
-template <class T>
-MCMoveRotate<T>::
+template <class T, class RandomNumberGenerator>
+MCMoveRotate<T, RandomNumberGenerator>::
 ~MCMoveRotate() {
 }
 
-template <class T>
-void MCMoveRotate<T>::
+template <class T, class RandomNumberGenerator>
+void MCMoveRotate<T, RandomNumberGenerator>::
 doTrial(){
-    if (tunable && numTrials >= adjustInterval) {
-        adjustStepSize();
+    if (MCMove<T, RandomNumberGenerator>::tunable && MCMove<T, RandomNumberGenerator>::numTrials >= MCMove<T, RandomNumberGenerator>::adjustInterval) {
+        MCMove<T, RandomNumberGenerator>::adjustStepSize();
     }
-    double oldValue = clusterSum.value();
+    double oldValue = MCMove<T, RandomNumberGenerator>::clusterSum.value();
     if(oldValue == 0){
         std::cerr << "Old Value is zero " << std::endl;
         exit(1);
     }
-    std::vector<Vector3<T>> axis(integratorMSMC.particles->size() - 1);
-    std::vector<double> angle(integratorMSMC.particles->size() - 1);
-    for(int j = 0; j < (integratorMSMC.particles->size() - 1); ++j)
+    std::vector<Vector3<T>> axis(MCMove<T, RandomNumberGenerator>::integratorMSMC.particles->size() - 1);
+    std::vector<double> angle(MCMove<T, RandomNumberGenerator>::integratorMSMC.particles->size() - 1);
+    for(int j = 0; j < (MCMove<T, RandomNumberGenerator>::integratorMSMC.particles->size() - 1); ++j)
     {
-        angle[j].set(i, (integratorMSMC.getRandomNumberGenerator()->getRandIn01() - 0.5) * stepSize);
-        integratorMSMC.getRandomUtilities()->setRandomOnSphere(axis[j]);
-        integratorMSMC.getParticles()[j+1]->rotateBy(axis[j], angle[j]);
+        angle[j] =  (MCMove<T, RandomNumberGenerator>::integratorMSMC.getRandomNumberGenerator()->getRandIn01() - 0.5) * MCMove<T, RandomNumberGenerator>::stepSize;
+        MCMove<T, RandomNumberGenerator>::integratorMSMC.getRandomUtilities()->setRandomOnSphere(axis[j]);
+        MCMove<T, RandomNumberGenerator>::integratorMSMC.getParticles()[j+1]->rotateBy(axis[j], angle[j]);
     }
-    double newValue = clusterSum.value();
+    double newValue = MCMove<T, RandomNumberGenerator>::clusterSum.value();
     double ratio = newValue / oldValue;
 
-    if((ratio < 1) && (ratio < integratorMSMC.getRandomNumberGenerator()->getRandIn01()))
+    if((ratio < 1) && (ratio < MCMove<T, RandomNumberGenerator>::integratorMSMC.getRandomNumberGenerator()->getRandIn01()))
     {
-        for(int j = 0; j < (integratorMSMC.particles->size() - 1); ++j)
+        for(int j = 0; j < (MCMove<T, RandomNumberGenerator>::integratorMSMC.particles->size() - 1); ++j)
         {
-            integratorMSMC.getParticles()[j+1]->rotateBy(axis[j], -angle[j]);
+            MCMove<T, RandomNumberGenerator>::integratorMSMC.getParticles()[j+1]->rotateBy(axis[j], -angle[j]);
         }
     }
 }
 
-template <class T>
-class MCMoveChainVirial : public MCMove {
+template <class T,
+        class RandomNumberGenerator>
+class MCMoveChainVirial : public MCMove<T, RandomNumberGenerator> {
 public:
-    MCMoveChainVirial(IntegratorMSMC<T> & integratorMSMC);
+    MCMoveChainVirial(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, double sigma);
     ~MCMoveChainVirial();
     void doTrial();
 
@@ -211,34 +225,34 @@ protected:
     double sigma;
 };
 
-template <class T>
-MCMoveChainVirial<T>::
-MCMoveChainVirial(IntegratorMSMC<T> & integratorMSMC, double sigma): MCMove(integratorMSMC), sigma(sigma)
+template <class T, class RandomNumberGenerator>
+MCMoveChainVirial<T, RandomNumberGenerator>::
+MCMoveChainVirial(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, double sigma): MCMove<T, RandomNumberGenerator>(integratorMSMC), sigma(sigma)
 {
 }
 
-template <class T>
-MCMoveChainVirial<T>::
+template <class T, class RandomNumberGenerator>
+MCMoveChainVirial<T, RandomNumberGenerator>::
 ~MCMoveChainVirial() {
 }
 
-template <class T>
-void MCMoveChainVirial<T>::
+template <class T, class RandomNumberGenerator>
+void MCMoveChainVirial<T, RandomNumberGenerator>::
 doTrial() {
-    const Vector3 rPrev = integratorMSMC.getParticles()[0]->getCenter();
-    Vector3 sPrev = rPrev;
-    for(int j = 1; j < (integratorMSMC.particles->size() - 1); ++j)
+    const Vector3<T> rPrev = MCMove<T, RandomNumberGenerator>::integratorMSMC.getParticles()[0]->getCenter();
+    Vector3<T> sPrev = rPrev;
+    for(int j = 1; j < (MCMove<T, RandomNumberGenerator>::integratorMSMC.particles->size() - 1); ++j)
     {
-        const Vector3 r = integratorMSMC.getParticles()[j]->getCenter();
-        integratorMSMC.getRandomUtilities()->setRandomInSphere(r);
-        Vector3 s = r*sigma + sPrev;
-        integratorMSMC.getParticles()[j]->setCenter(s);
+        const Vector3<T> r = MCMove<T, RandomNumberGenerator>::integratorMSMC.getParticles()[j]->getCenter();
+        MCMove<T, RandomNumberGenerator>::integratorMSMC.getRandomUtilities()->setRandomInSphere(r);
+        Vector3<T> s = r*sigma + sPrev;
+        MCMove<T, RandomNumberGenerator>::integratorMSMC.getParticles()[j]->setCenter(s);
          sPrev = s;
     }
 }
 
-template <class T>
-void MCMove<T>::
+template <class T, class RandomNumberGenerator>
+void MCMove<T, RandomNumberGenerator>::
 adjustStepSize(){
     double avg = chiSum/numTrials;
     if (avg > 0.5) {
@@ -293,14 +307,14 @@ adjustStepSize(){
     chiSum = 0;
 }
 
-template <class T>
-double MCMove<T>::
+template <class T, class RandomNumberGenerator>
+double MCMove<T, RandomNumberGenerator>::
 getStepSize() {
     return stepSize;
 }
 
-template <class T>
-void MCMove<T>::
+template <class T, class RandomNumberGenerator>
+void MCMove<T, RandomNumberGenerator>::
 setStepSize(double sS) {
     stepSize = sS;
 }

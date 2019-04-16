@@ -45,6 +45,7 @@
 #include "../Geometry/Sphere.h"
 #include "../Geometry/Vector3.h"
 #include "IntegratorMSMC.h"
+#include "OverlapTester.h"
 
 /// Defines particles using assembly of spheres with mutable center and orientation.
 ///
@@ -56,7 +57,7 @@ class ClusterSum {
     virtual ~ClusterSum();
     virtual double value();
 
- private:
+ protected:
     OverlapTester<T> const & overlapTester;
     IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC;
 };
@@ -82,16 +83,21 @@ template <class T,
         class RandomNumberGenerator>
 class ClusterSumChain : public ClusterSum<T, RandomNumberGenerator> {
 public:
-    ClusterSumChain(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
+    ClusterSumChain(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester, double ringFac, double chainFac);
     ~ClusterSumChain();
     double value();
+
+private:
+      double ringFac;
+      double chainFac;
 };
 
 template <class T,
         class RandomNumberGenerator>
 ClusterSumChain<T, RandomNumberGenerator>::
-ClusterSumChain(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester):
-        ClusterSum(integratorMSMC, overlapTester){
+ClusterSumChain(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester,
+                double ringFac, double chainFac):
+        ClusterSum<T, RandomNumberGenerator>(integratorMSMC, overlapTester), ringFac(ringFac), chainFac(chainFac){
 }
 
 template <class T,
@@ -100,15 +106,17 @@ ClusterSumChain<T, RandomNumberGenerator>::
 ~ClusterSumChain() {
 }
 
+template <class T,
+        class RandomNumberGenerator>
 double
 ClusterSumChain<T, RandomNumberGenerator>::
 value(){
-    const int n = integratorMSMC->getParticles()->size();
+    const int n = ClusterSum<T, RandomNumberGenerator>::integratorMSMC.getParticles()->size();
     const int nf1 = (1 << (n - 1));
     double fValues[n][n];
     for(int iMol1 = 0; iMol1 < n; ++iMol1){
         for(int iMol2 = iMol1 + 1; iMol2 < n; ++iMol2){
-            bool overlapped = overlapTester.isOverlapped(integratorMSMC->getParticles()[iMol1], integratorMSMC->getParticles()[iMol2]);
+            bool overlapped = ClusterSum<T, RandomNumberGenerator>::overlapTester.isOverlapped(ClusterSum<T, RandomNumberGenerator>::integratorMSMC.getParticles()[iMol1], ClusterSum<T, RandomNumberGenerator>::integratorMSMC.getParticles()[iMol2]);
             fValues[iMol1][iMol2] = fValues[iMol2][iMol1] = overlapped ? 1 : 0;
         }
     }
@@ -166,34 +174,43 @@ value(){
 }
 
 
-template <class T>
-class ClusterSumWheatleyRecursion : public ClusterSum {
+template <class T,
+        class RandomNumberGenerator>
+class ClusterSumWheatleyRecursion : public ClusterSum<T, RandomNumberGenerator>{
 public:
-    ClusterSumWheatleyRecursion(OverlapTester const & overlapTester);
+    ClusterSumWheatleyRecursion(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
     ~ClusterSumWheatleyRecursion();
     double value();
+
+private:
+            double preFac;
 };
-template <class T>
-ClusterSum<T>::
-ClusterSumWheatleyRecursion(IntegratorMSMC<T> & integratorMSMC, OverlapTester const & overlapTester):
-ClusterSum(integratorMSMC, overlapTester){
+
+template <class T,
+        class RandomNumberGenerator>
+ClusterSumWheatleyRecursion<T, RandomNumberGenerator>::
+ClusterSumWheatleyRecursion(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester):
+ClusterSum<T, RandomNumberGenerator>(integratorMSMC, overlapTester){
     const int n = integratorMSMC->getParticles()->size();
     int factorial = 1;
     for (int m = 2; m <= n; ++m){
         factorial *= m;
     }
-    double prefac = -(n - 1.0)/factorial;
+    preFac = -(n - 1.0)/factorial;
 }
 
-template <class T>
-ClusterSumWheatleyRecursion<T>::
+template <class T,
+    class RandomNumberGenerator>
+ClusterSumWheatleyRecursion<T, RandomNumberGenerator>::
 ~ClusterSumWheatleyRecursion() {
 }
 
+template <class T,
+    class RandomNumberGenerator>
 double
-ClusterSumWheatleyRecursion<T>::
+ClusterSumWheatleyRecursion<T, RandomNumberGenerator>::
 value() {
-    const int n = integratorMSMC->getParticles()->size();
+    const int n = ClusterSum<T, RandomNumberGenerator>::integratorMSMC.getParticles()->size();
     const int nf = (1 << n);
     double fQ[nf], fC[nf];
     double fA[nf], fB[nf];
@@ -201,7 +218,7 @@ value() {
         int i = 1 << iMol1;
         fQ[i] = 1.0;
         for(int iMol2 = iMol1 + 1; iMol2 < n; ++iMol2){
-            bool overlapped = overlapTester.isOverlapped(integratorMSMC->getParticles()[iMol1], integratorMSMC->getParticles()[iMol2]);
+            bool overlapped = ClusterSum<T, RandomNumberGenerator>::overlapTester.isOverlapped(ClusterSum<T, RandomNumberGenerator>::integratorMSMC.getParticles()[iMol1], ClusterSum<T, RandomNumberGenerator>::integratorMSMC.getParticles()[iMol2]);
             fQ[i|(1<<iMol2)] = overlapped ? 0 : 1;
         }
     }
@@ -328,7 +345,7 @@ value() {
             fB[i] -= fA[i];
         }
     }
-    return prefac*fB[nf-1];
+    return preFac*fB[nf-1];
 }
 #endif
 

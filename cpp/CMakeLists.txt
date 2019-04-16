@@ -38,7 +38,7 @@ set(SOURCE_FILES
   ${SRC_DIR}/ResultsInterior.cc
   ${SRC_DIR}/ResultsZeno.cc
   ${SRC_DIR}/Timer.cc
-  ${SRC_DIR}/Units.cc)
+  ${SRC_DIR}/Units.cc src/Virials/Dummy.h)
 
 add_executable(zeno ${SOURCE_FILES})
 

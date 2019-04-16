@@ -49,39 +49,50 @@
 
 /// Performs calculations to obtain virial coefficients.
 ///
+
+template <class T,
+        class RandomNumberGenerator>
+class MCMove;
+
+template <class T,
+        class RandomNumberGenerator>
+class ClusterSum;
+
 template <class T,
   class RandomNumberGenerator>
 class IntegratorMSMC {
  public:
     IntegratorMSMC(Parameters const * parameters,
-                RandomNumberGenerator * randomNumberGenerator,
+                   int threadNum,
+                   Timer const * totalTimer,
+                   RandomNumberGenerator * randomNumberGenerator,
                 std::vector<Sphere<double> *> & boundingSpheres,
                 std::vector<int> & numParticles,
                 std::vector<MixedModel<T> *> & models,
 		        OverlapTester<T> const & overlapTester,
-                std::vector<MCMove<T>> mcMoves,
-                std::vector<double> moveProbs,
-                ClusterSum * clusterSum);
+                std::vector<MCMove<T, RandomNumberGenerator>> & mcMoves,
+                std::vector<double> & moveProbs,
+                ClusterSum<T, RandomNumberGenerator> * clusterSum);
 
   ~IntegratorMSMC();
 
   void doStep();
   std::vector<Particle<T> *> getParticles();
   RandomNumberGenerator * getRandomNumberGenerator();
-  ClusterSum * getClusterSum();
-  RandomUtilities * getRandomUtilities();
+  ClusterSum<T, RandomNumberGenerator> * getClusterSum();
+  RandomUtilities<T, RandomNumberGenerator> * getRandomUtilities();
 private:
   Parameters const * parameters;
   int threadNum;
   Timer const * totalTimer;
   RandomNumberGenerator * randomNumberGenerator;
-  std::vector<Sphere<double *> boundingSphere;
+  std::vector<Sphere<double> *> & boundingSpheres;
   std::vector<int> & numParticles;
   OverlapTester<T> const & overlapTester;
   std::vector<Particle<T> *> particles;
-  std::vector<MCMove> mcMoves;
-  std::vector<double> moveProbs;
-  ClusterSum * clusterSum;
+  std::vector<MCMove<T, RandomNumberGenerator>> & mcMoves;
+  std::vector<double> & moveProbs;
+  ClusterSum<T, RandomNumberGenerator> * clusterSum;
   RandomUtilities<T, RandomNumberGenerator> randomUtilities;
 };
 
@@ -96,10 +107,10 @@ IntegratorMSMC(Parameters const * parameters,
                 std::vector<Sphere<double> *> & boundingSpheres,
                 std::vector<int> & numParticles,
                 std::vector<MixedModel<T> *> & models,
-                OverlapTester const & overlapTester,
-                std::vector<MCMove> & mcMoves,
+                OverlapTester<T> const & overlapTester,
+                std::vector<MCMove<T, RandomNumberGenerator>> & mcMoves,
                 std::vector<double> & moveProbs,
-                ClusterSum * clusterSum) :
+                ClusterSum<T, RandomNumberGenerator> * clusterSum) :
               parameters(parameters),
               threadNum(threadNum),
               totalTimer(totalTimer),
@@ -114,7 +125,7 @@ IntegratorMSMC(Parameters const * parameters,
     {
         for (int j =0; j < numParticles[i]; ++j)
         {
-            particles.push_back(new Particle (models[i], boundingSpheres[i]));
+            particles.push_back(new Particle<T> (models[i], boundingSpheres[i]));
         }
     }
 
@@ -137,7 +148,7 @@ IntegratorMSMC<T,
                RandomNumberGenerator>::
 
 doStep(){
-    double random = randomNumberGenerator.getRandIn01();
+    double random = randomNumberGenerator->getRandIn01();
     double cumProb = 0.0;
     int currentMove = -1;
     for(int i = 0; i < mcMoves.size(); ++i)
@@ -147,14 +158,14 @@ doStep(){
         {
             currentMove = i;
         }
+        mcMoves[i].doTrial();
     }
-    mcMoves[i].doTrial();
     collectData();
 }
 
 template <class T,
         class RandomNumberGenerator>
-std::vector<Particle<T>>
+std::vector<Particle<T> *>
 IntegratorMSMC<T,RandomNumberGenerator>::
 getParticles(){
     return particles;
@@ -170,7 +181,7 @@ getRandomNumberGenerator(){
 
 template <class T,
         class RandomNumberGenerator>
-ClusterSum *
+ClusterSum<T, RandomNumberGenerator> *
 IntegratorMSMC<T,RandomNumberGenerator>::
 getClusterSum(){
     return clusterSum;

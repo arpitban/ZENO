@@ -58,7 +58,7 @@ class SamplerVirial {
                 std::vector<Sphere<double> *> & boundingSpheres,
                 std::vector<int> & numParticles,
                 std::vector<MixedModel<T> *> & particles,
-		        OverlapTester const & overlapTester);
+		        OverlapTester<T> const & overlapTester);
 
   ~SamplerVirial();
 
@@ -72,10 +72,10 @@ class SamplerVirial {
   int threadNum;
   Timer const * totalTimer;
   RandomNumberGenerator * randomNumberGenerator;
-  std::vector<Sphere<double *> boundingSphere;
+  std::vector<Sphere<double> *> boundingSpheres;
   std::vector<int> & numParticles;
   std::vector<MixedModel<T> *> & particles;
-  OverlapTester const & overlapTester;
+  OverlapTester<T> const & overlapTester;
 };
 
 template <class T,
@@ -89,7 +89,7 @@ SamplerVirial<T,
                 std::vector<Sphere<double> *> & boundingSpheres,
                 std::vector<int> & numParticles,
                 std::vector<MixedModel<T> *> & particles,
-                OverlapTester const & overlapTester) :
+                OverlapTester<T> const & overlapTester) :
               parameters(parameters),
               threadNum(threadNum),
               totalTimer(totalTimer),
