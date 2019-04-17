@@ -39,11 +39,7 @@
 #ifndef OVERLAP_TESTER_H
 #define OVERLAP_TESTER_H
 
-#include <vector>
-#include <cmath>
-
-#include "../Geometry/Sphere.h"
-#include "../Geometry/Vector3.h"
+#include "Particle.h"
 
 ///
 ///
@@ -54,54 +50,7 @@ class OverlapTester {
   ~OverlapTester();
 
   bool isOverlapped(Particle<T> * a, Particle<T> * b);
- private:
 };
-
-template <class T>
-OverlapTester<T>::
-OverlapTester(){
-}
-
-template <class T>
-OverlapTester<T>::
-  ~OverlapTester() {
-}
-
-///
-///
-template <class T>
-bool
-OverlapTester<T>::
-isOverlapped(Particle<T> * a, Particle<T> * b) {
-    Vector3<T> x = a->getBoundingSphere()->getCenter() + a->getCenter();
-    Vector3<T> y = b->getBoundingSphere()->getCenter() + b->getCenter();
-    Vector3<T> distCenterVec = x - y;
-    T distCenterSqr = distCenterVec.getMagnitudeSqr();
-    T radiusX =  a->getBoundingSphere()->getRadius();
-    T radiusY =  b->getBoundingSphere()->getRadius();
-    if(distCenterSqr > ((radiusX + radiusY)* (radiusX + radiusY)))
-    {
-        return false;
-    }
-
-    for(int i = 0; i < a->numSpheres(); ++i)
-    {
-        Vector3<T> x = a->setFromSpherePosition(i);
-        T radiusX = a->getModel()->getSpheres()[i]->getRadius();
-        for(int j = 0; j < b->numSpheres(); ++j)
-        {
-            Vector3<T> y = a->setFromSpherePosition(j);
-            Vector3<T> distCenterVec = x - y;
-            T distCenterSqr = distCenterVec.getMagnitudeSqr();
-            T radiusY = b->getModel()->getSpheres()[i]->getRadius();
-            if(distCenterSqr < ((radiusX + radiusY)* (radiusX + radiusY)))
-            {
-                return true;
-            }
-        }
-    }
-    return false;
-}
 
 #endif
 

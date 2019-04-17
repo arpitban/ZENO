@@ -36,72 +36,109 @@
 //
 // ================================================================
 
-#ifndef INTEGRATOR_MSMC_H
-#define INTEGRATOR_MSMC_H
+#include "IntegratorMSMC.h"
 
-#include <vector>
-
-#include "../Parameters.h"
-#include "../Timer.h"
-#include "../Geometry/Sphere.h"
-#include "../Geometry/MixedModel.h"
-#include "OverlapTester.h"
-#include "MCMove.h"
-#include "ClusterSum.h"
-#include "MeterOverlap.h"
-#include "Particle.h"
-#include "RandomUtilities.h"
 
 /// Performs calculations to obtain virial coefficients.
 ///
 
 template <class T,
-        class RandomNumberGenerator>
-class MCMove;
-
-template <class T,
-        class RandomNumberGenerator>
-class ClusterSum;
-
-template <class T,
   class RandomNumberGenerator>
-class IntegratorMSMC {
- public:
-    IntegratorMSMC(Parameters const * parameters,
-                   int threadNum,
-                   Timer const * totalTimer,
-                   RandomNumberGenerator * randomNumberGenerator,
+IntegratorMSMC<T,
+               RandomNumberGenerator>::
+IntegratorMSMC(Parameters const * parameters,
+                int threadNum,
+                Timer const * totalTimer,
+                RandomNumberGenerator * randomNumberGenerator,
                 std::vector<Sphere<double> *> & boundingSpheres,
                 std::vector<int> & numParticles,
                 std::vector<MixedModel<T> *> & models,
-		        OverlapTester<T> const & overlapTester,
+                OverlapTester<T> const & overlapTester,
                 std::vector<MCMove<T, RandomNumberGenerator>> & mcMoves,
                 std::vector<double> & moveProbs,
                 ClusterSum<T, RandomNumberGenerator> * clusterSum,
-                MeterOverlap<T, RandomNumberGenerator> & meterOverlap);
+                MeterOverlap<T, RandomNumberGenerator> & meterOverlap) :
+              parameters(parameters),
+              threadNum(threadNum),
+              totalTimer(totalTimer),
+              randomNumberGenerator(randomNumberGenerator),
+              boundingSpheres(boundingSpheres),
+              numParticles(numParticles),
+              overlapTester(overlapTester),
+              mcMoves(mcMoves),
+              moveProbs(moveProbs),
+              clusterSum(clusterSum),
+              meterOverlap(meterOverlap){
+    for(int i = 0; i < numParticles.size(); ++i)
+    {
+        for (int j =0; j < numParticles[i]; ++j)
+        {
+            particles.push_back(new Particle<T> (models[i], boundingSpheres[i]));
+        }
+    }
 
-  ~IntegratorMSMC();
+}
 
-  void doStep();
-  std::vector<Particle<T> *> getParticles();
-  RandomNumberGenerator * getRandomNumberGenerator();
-  ClusterSum<T, RandomNumberGenerator> * getClusterSum();
-  RandomUtilities<T, RandomNumberGenerator> * getRandomUtilities();
-private:
-  Parameters const * parameters;
-  int threadNum;
-  Timer const * totalTimer;
-  RandomNumberGenerator * randomNumberGenerator;
-  std::vector<Sphere<double> *> & boundingSpheres;
-  std::vector<int> & numParticles;
-  OverlapTester<T> const & overlapTester;
-  std::vector<Particle<T> *> particles;
-  std::vector<MCMove<T, RandomNumberGenerator>> & mcMoves;
-  std::vector<double> & moveProbs;
-  ClusterSum<T, RandomNumberGenerator> * clusterSum;
-  RandomUtilities<T, RandomNumberGenerator> randomUtilities;
-  MeterOverlap<T, RandomNumberGenerator> & meterOverlap;
-};
+template <class T,
+  class RandomNumberGenerator>
+IntegratorMSMC<T,
+               RandomNumberGenerator>::
+  ~IntegratorMSMC() {
 
-#endif
+}
+
+/// Computes something.
+///
+template <class T,
+  class RandomNumberGenerator>
+void
+IntegratorMSMC<T,
+               RandomNumberGenerator>::
+doStep(){
+    double random = randomNumberGenerator->getRandIn01();
+    double cumProb = 0.0;
+    int currentMove = -1;
+    for(int i = 0; i < mcMoves.size(); ++i)
+    {
+        cumProb += moveProbs[i];
+        if(random < cumProb)
+        {
+            currentMove = i;
+        }
+        mcMoves[i].doTrial();
+    }
+    meterOverlap.collectData();
+}
+
+template <class T,
+        class RandomNumberGenerator>
+std::vector<Particle<T> *>
+IntegratorMSMC<T,RandomNumberGenerator>::
+getParticles(){
+    return particles;
+}
+
+template <class T,
+        class RandomNumberGenerator>
+RandomNumberGenerator *
+IntegratorMSMC<T,RandomNumberGenerator>::
+getRandomNumberGenerator(){
+    return randomNumberGenerator;
+}
+
+template <class T,
+        class RandomNumberGenerator>
+ClusterSum<T, RandomNumberGenerator> *
+IntegratorMSMC<T,RandomNumberGenerator>::
+getClusterSum(){
+    return clusterSum;
+}
+
+template <class T,
+        class RandomNumberGenerator>
+RandomUtilities<T, RandomNumberGenerator> *
+IntegratorMSMC<T,RandomNumberGenerator>::
+getRandomUtilities(){
+    return & randomUtilities;
+}
 

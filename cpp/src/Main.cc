@@ -76,7 +76,7 @@
 #include "Virials/SamplerVirial.h"
 #include "Virials/IntegratorMSMC.h"
 #include "Virials/MCMove.h"
-
+#include "Virials/MeterOverlap.h"
 
 #include "Timer.h"
 

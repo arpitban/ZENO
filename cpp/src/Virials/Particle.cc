@@ -36,56 +36,82 @@
 //
 // ================================================================
 
-#ifndef CLUSTER_SUM_H
-#define CLUSTER_SUM_H
-
-#include "OverlapTester.h"
+#include "Particle.h"
 
 /// Defines particles using assembly of spheres with mutable center and orientation.
 ///
-template <class T,
-        class RandomNumberGenerator>
-class IntegratorMSMC;
 
-template <class T,
-        class RandomNumberGenerator>
-class ClusterSum {
- public:
-    ClusterSum(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
-    virtual ~ClusterSum();
-    virtual double value();
+template <class T>
+Particle<T>::
+Particle(MixedModel<T> & model, Sphere<T> & boundingSphere) : model(model), boundingSphere(boundingSphere)
+              {
+}
 
- protected:
-    OverlapTester<T> const & overlapTester;
-    IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC;
-};
+template <class T>
+Particle<T>::
+  ~Particle() {
+}
 
+/// Defines particles using assembly of spheres with mutable center and orientation.
 ///
-///
+template <class T>
+int
+Particle<T>::
+numSpheres(){
+    return model.getSpheres() -> size();
+}
 
-template <class T,
-        class RandomNumberGenerator>
-class ClusterSumChain : public ClusterSum<T, RandomNumberGenerator> {
-public:
-    ClusterSumChain(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester, double ringFac, double chainFac);
-    ~ClusterSumChain();
-    double value();
+template <class T>
+const Vector3<T>
+Particle<T>::
+getCenter() const {
+    return center;
+}
 
-private:
-      double ringFac;
-      double chainFac;
-};
+template <class T>
+void
+Particle<T>::
+setCenter(Vector3<T> v) {
+    center = v;
+}
 
-template <class T,
-        class RandomNumberGenerator>
-class ClusterSumWheatleyRecursion : public ClusterSum<T, RandomNumberGenerator>{
-public:
-    ClusterSumWheatleyRecursion(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
-    ~ClusterSumWheatleyRecursion();
-    double value();
+template <class T>
+void
+Particle<T>::
+translateBy(Vector3<T> step){
+    center += step;
+}
 
-private:
-    double preFac;
-};
-#endif
+template <class T>
+void
+Particle<T>::
+rotateBy(Vector3<T> axis, T angle){
+    Matrix3x3<T> rotation;
+    rotation.setAxisAngle(axis, angle);
+    rotation.transform(orientation);
+}
+
+template <class T>
+const Vector3<T>
+Particle<T>::
+setFromSpherePosition( int index) const {
+    Vector3<T> position = model.getSpheres() -> at(index).getCenter();
+    orientation.transform(position);
+    position += center;
+    return position;
+}
+
+template <class T>
+MixedModel<T> *
+Particle<T>::
+getModel(){
+    return model;
+}
+
+template <class T>
+Sphere<T> *
+Particle<T>::
+getBoundingSphere(){
+    return boundingSphere;
+}
 

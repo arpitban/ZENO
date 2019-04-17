@@ -40,10 +40,11 @@
 #define PARTICLE_H
 
 #include <vector>
-#include <cmath>
 
+#include "../Geometry/MixedModel.h"
 #include "../Geometry/Sphere.h"
 #include "../Geometry/Vector3.h"
+#include "../Geometry/Matrix3x3.h"
 
 /// Defines particles using assembly of spheres with mutable center and orientation.
 ///
@@ -69,79 +70,5 @@ class Particle {
     Vector3<T> center{0,0,0};
     Sphere<T> & boundingSphere;
 };
-
-template <class T>
-Particle<T>::
-Particle(MixedModel<T> & model, Sphere<T> & boundingSphere) : model(model), boundingSphere(boundingSphere)
-              {
-}
-
-template <class T>
-Particle<T>::
-  ~Particle() {
-}
-
-/// Defines particles using assembly of spheres with mutable center and orientation.
-///
-template <class T>
-int
-Particle<T>::
-numSpheres(){
-    return model.getSpheres() -> size();
-}
-
-template <class T>
-const Vector3<T>
-Particle<T>::
-getCenter() const {
-    return center;
-}
-
-template <class T>
-void
-Particle<T>::
-setCenter(Vector3<T> v) {
-    center = v;
-}
-
-template <class T>
-void
-Particle<T>::
-translateBy(Vector3<T> step){
-    center += step;
-}
-
-template <class T>
-void
-Particle<T>::
-rotateBy(Vector3<T> axis, T angle){
-    Matrix3x3<T> rotation;
-    rotation.setAxisAngle(axis, angle);
-    rotation.transform(orientation);
-}
-
-template <class T>
-const Vector3<T>
-Particle<T>::
-setFromSpherePosition( int index) const {
-    Vector3<T> position = model.getSpheres() -> at(index).getCenter();
-    orientation.transform(position);
-    position += center;
-    return position;
-}
-
-template <class T>
-MixedModel<T> *
-Particle<T>::
-getModel(){
-    return model;
-}
-
-template <class T>
-Sphere<T> *
-Particle<T>::
-getBoundingSphere(){
-    return boundingSphere;
-}
 #endif
 

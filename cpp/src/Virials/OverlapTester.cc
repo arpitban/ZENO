@@ -36,56 +36,54 @@
 //
 // ================================================================
 
-#ifndef CLUSTER_SUM_H
-#define CLUSTER_SUM_H
-
 #include "OverlapTester.h"
 
-/// Defines particles using assembly of spheres with mutable center and orientation.
-///
-template <class T,
-        class RandomNumberGenerator>
-class IntegratorMSMC;
-
-template <class T,
-        class RandomNumberGenerator>
-class ClusterSum {
- public:
-    ClusterSum(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
-    virtual ~ClusterSum();
-    virtual double value();
-
- protected:
-    OverlapTester<T> const & overlapTester;
-    IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC;
-};
-
 ///
 ///
 
-template <class T,
-        class RandomNumberGenerator>
-class ClusterSumChain : public ClusterSum<T, RandomNumberGenerator> {
-public:
-    ClusterSumChain(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester, double ringFac, double chainFac);
-    ~ClusterSumChain();
-    double value();
+template <class T>
+OverlapTester<T>::
+OverlapTester(){
+}
 
-private:
-      double ringFac;
-      double chainFac;
-};
+template <class T>
+OverlapTester<T>::
+  ~OverlapTester() {
+}
 
-template <class T,
-        class RandomNumberGenerator>
-class ClusterSumWheatleyRecursion : public ClusterSum<T, RandomNumberGenerator>{
-public:
-    ClusterSumWheatleyRecursion(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
-    ~ClusterSumWheatleyRecursion();
-    double value();
+///
+///
+template <class T>
+bool
+OverlapTester<T>::
+isOverlapped(Particle<T> * a, Particle<T> * b) {
+    Vector3<T> x = a->getBoundingSphere()->getCenter() + a->getCenter();
+    Vector3<T> y = b->getBoundingSphere()->getCenter() + b->getCenter();
+    Vector3<T> distCenterVec = x - y;
+    T distCenterSqr = distCenterVec.getMagnitudeSqr();
+    T radiusX =  a->getBoundingSphere()->getRadius();
+    T radiusY =  b->getBoundingSphere()->getRadius();
+    if(distCenterSqr > ((radiusX + radiusY)* (radiusX + radiusY)))
+    {
+        return false;
+    }
 
-private:
-    double preFac;
-};
-#endif
+    for(int i = 0; i < a->numSpheres(); ++i)
+    {
+        Vector3<T> x = a->setFromSpherePosition(i);
+        T radiusX = a->getModel()->getSpheres()[i]->getRadius();
+        for(int j = 0; j < b->numSpheres(); ++j)
+        {
+            Vector3<T> y = a->setFromSpherePosition(j);
+            Vector3<T> distCenterVec = x - y;
+            T distCenterSqr = distCenterVec.getMagnitudeSqr();
+            T radiusY = b->getModel()->getSpheres()[i]->getRadius();
+            if(distCenterSqr < ((radiusX + radiusY)* (radiusX + radiusY)))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 

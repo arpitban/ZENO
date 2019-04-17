@@ -36,56 +36,57 @@
 //
 // ================================================================
 
-#ifndef CLUSTER_SUM_H
-#define CLUSTER_SUM_H
+#include <cmath>
 
-#include "OverlapTester.h"
+#include "RandomUtilities.h"
 
 /// Defines particles using assembly of spheres with mutable center and orientation.
 ///
 template <class T,
         class RandomNumberGenerator>
-class IntegratorMSMC;
+RandomUtilities<T, RandomNumberGenerator>::
+RandomUtilities(RandomNumberGenerator * randomNumberGenerator):randomNumberGenerator(randomNumberGenerator){
+}
 
 template <class T,
         class RandomNumberGenerator>
-class ClusterSum {
- public:
-    ClusterSum(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
-    virtual ~ClusterSum();
-    virtual double value();
+RandomUtilities<T, RandomNumberGenerator>::
+  ~RandomUtilities() {
+}
 
- protected:
-    OverlapTester<T> const & overlapTester;
-    IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC;
-};
-
+/// Generates random vectors.
 ///
-///
+template <class T,
+        class RandomNumberGenerator>
+void
+RandomUtilities<T, RandomNumberGenerator>::
+setRandomOnSphere(Vector3<T> * v) {
+    double z1, z2, zsq;
+    do  {
+        z1 = 2.0 * randomNumberGenerator->getRandIn01() - 1.0;
+        z2 = 2.0 * randomNumberGenerator->getRandIn01() - 1.0;
+        zsq = z1 * z1 + z2 * z2;
+    } while (zsq > 1.0);
+
+    double ranh = 2.0 * sqrt(1.0 - zsq);
+    v->setXYZ(z1 * ranh, z2 * ranh, 1.0 - 2.0 * zsq);
+}
 
 template <class T,
         class RandomNumberGenerator>
-class ClusterSumChain : public ClusterSum<T, RandomNumberGenerator> {
-public:
-    ClusterSumChain(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester, double ringFac, double chainFac);
-    ~ClusterSumChain();
-    double value();
+void
+RandomUtilities<T, RandomNumberGenerator>::
+setRandomInSphere(Vector3<T> * v) {
+    double r = cbrt(randomNumberGenerator->getRandIn01());
+    double u, w, s;
+    do {
+        u = 1.0 - 2.0*randomNumberGenerator->getRandIn01();
+        w = 1.0 - 2.0*randomNumberGenerator->getRandIn01();
+        s = u*u + w*w;
+    } while(s > 1);
 
-private:
-      double ringFac;
-      double chainFac;
-};
+    double ra = 2 * r * sqrt(1 - s);
+    v->setXYZ(ra * u, ra * w, r * (2 * s - 1));
 
-template <class T,
-        class RandomNumberGenerator>
-class ClusterSumWheatleyRecursion : public ClusterSum<T, RandomNumberGenerator>{
-public:
-    ClusterSumWheatleyRecursion(IntegratorMSMC<T, RandomNumberGenerator> & integratorMSMC, OverlapTester<T> const & overlapTester);
-    ~ClusterSumWheatleyRecursion();
-    double value();
-
-private:
-    double preFac;
-};
-#endif
+}
 
