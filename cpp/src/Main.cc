@@ -60,6 +60,7 @@
 
 #include "ResultsZeno.h"
 #include "ResultsInterior.h"
+//#include "ResultsVirial.h"
 #include "ResultsCompiler.h"
 
 #include "Geometry/Sphere.h"
@@ -77,6 +78,14 @@
 #include "Virials/IntegratorMSMC.h"
 #include "Virials/MCMove.h"
 #include "Virials/MeterOverlap.h"
+#include "Virials/Particle.hpp"
+#include "Virials/OverlapTester.hpp"
+#include "Virials/RandomUtilities.hpp"
+#include "Virials/ClusterSum.hpp"
+#include "Virials/SamplerVirial.hpp"
+#include "Virials/IntegratorMSMC.hpp"
+#include "Virials/MCMove.hpp"
+#include "Virials/MeterOverlap.hpp"
 
 #include "Timer.h"
 
@@ -227,17 +236,52 @@ doInteriorSamplingThread(Parameters const * parameters,
 			 Timer const * totalTimer,
 			 RandomNumberGenerator * randomNumberGenerators,
 			 ResultsInterior * resultsInterior);
-
+/*
+void
+doDummy(Parameters const * parameters,
+        int threadNum,
+        Timer const * totalTimer,
+        RandomNumberGenerator * randomNumberGenerator,
+        std::vector<Sphere<double> *> & boundingSpheres,
+        std::vector<int> & numParticles,
+        std::vector<MixedModel<double> *> & particles,
+        OverlapTester<double> const & overlapTester);*/
+/*
+void
+doVirialSampling(Parameters const & parameters,
+                   long long numSamplesInProcess,
+                   BoundingSphere const & boundingSphere,
+                   Model const & insideOutsideTester,
+                   Timer const & totalTimer,
+                   std::vector<RandomNumberGenerator> * threadRNGs,
+                   double * sampleTime,
+                 std::vector<Sphere<double> *> & boundingSpheres,
+                 std::vector<int> & numParticles,
+                 std::vector<MixedModel<double> *> & particles,
+                 OverlapTester<double> const & overlapTester);
+*/
 void
 doVirialSamplingThread(Parameters const * parameters,
-                         BoundingSphere const * boundingSphere,
-                         Model const * insideOutsideTester,
-                         int threadNum,
-                         long long numSamples,
-                         Timer const * totalTimer,
-                         RandomNumberGenerator * randomNumberGenerators,
-                         ResultsInterior * resultsInterior);
-
+                       int threadNum,
+                       Timer const * totalTimer,
+                       RandomNumberGenerator * randomNumberGenerator,
+                       std::vector<Sphere<double> *> & boundingSpheres,
+                       std::vector<int> & numParticles,
+                       std::vector<MixedModel<double> *> & particles,
+                       OverlapTester<double> const & overlapTester);
+/*void
+doVirialSamplingThread(Parameters const * parameters,
+                       BoundingSphere const * boundingSphere,
+                       Model const * insideOutsideTester,
+                       int threadNum,
+                       long long numSamples,
+                       Timer const * totalTimer,
+                       RandomNumberGenerator * randomNumberGenerator,
+                       std::vector<Sphere<double> *> & boundingSpheres,
+                       std::vector<int> & numParticles,
+                       std::vector<MixedModel<double> *> & particles,
+                       OverlapTester<double> const & overlapTester);
+*/
 void
 printOutput(BoundingSphere const & boundingSphere,
 	    ResultsInterior const * resultsInterior,
@@ -281,6 +325,8 @@ writePoints(std::string const & fileName,
 // ================================================================
 
 int main(int argc, char **argv) {
+
+  //Dummy dummy;
 
   Timer totalTimer;
 
@@ -1183,6 +1229,18 @@ doInteriorSamplingThread(Parameters const * parameters,
   }
 }
 /*
+void
+doDummy(Parameters const * parameters,
+        int threadNum,
+        Timer const * totalTimer,
+        RandomNumberGenerator * randomNumberGenerator,
+        std::vector<Sphere<double> *> & boundingSpheres,
+        std::vector<int> & numParticles,
+        std::vector<MixedModel<double> *> & particles,
+        OverlapTester<double> const & overlapTester){
+    Dummy<double, RandomNumberGenerator> dummy(parameters, threadNum, totalTimer, randomNumberGenerator, boundingSpheres, numParticles, particles, overlapTester);
+}*/
+/*
 /// Launches a set of virial-coefficient samples in each of a set of parallel
 /// threads.
 ///
@@ -1193,8 +1251,11 @@ doVirialSampling(Parameters const & parameters,
                    Model const & insideOutsideTester,
                    Timer const & totalTimer,
                    std::vector<RandomNumberGenerator> * threadRNGs,
-                   ResultsInterior * resultsInterior,
-                   double * sampleTime) {
+                   double * sampleTime,
+                 std::vector<Sphere<double> *> & boundingSpheres,
+                 std::vector<int> & numParticles,
+                 std::vector<MixedModel<double> *> & particles,
+                 OverlapTester<double> const & overlapTester) {
 
     Timer sampleTimer;
     sampleTimer.start();
@@ -1220,7 +1281,21 @@ doVirialSampling(Parameters const & parameters,
                                 numSamplesInThread,
                                 &totalTimer,
                                 &(threadRNGs->at(threadNum)),
-                                resultsInterior);
+                                boundingSpheres,
+                                numParticles,
+                                particles,
+                                overlapTester);
+        doVirialSamplingThread(&parameters,
+                &boundingSphere,
+                &insideOutsideTester,
+                threadNum,
+                numSamplesInThread,
+                &totalTimer,
+                &(threadRNGs->at(threadNum)),
+                boundingSpheres,
+                numParticles,
+                particles,
+                overlapTester);
     }
 
     for (int threadNum = 0; threadNum < numThreads; threadNum++) {
@@ -1236,52 +1311,21 @@ doVirialSampling(Parameters const & parameters,
     sampleTimer.stop();
     *sampleTime += sampleTimer.getTime();
 }
-
+*/
 /// Performs a given number of virial-coefficient samples and records the results.
 /// Runs in a single thread.
 ///
 void
 doVirialSamplingThread(Parameters const * parameters,
-                         BoundingSphere const * boundingSphere,
-                         Model const * insideOutsideTester,
-                         int threadNum,
-                         long long numSamples,
-                         Timer const * totalTimer,
-                         RandomNumberGenerator * randomNumberGenerator,
-                         ResultsInterior * resultsInterior) {
-
-    SamplerVirial<double,
-            RandomNumberGenerator,
-            Model,
-            RandomBallPointGenerator>
-            sampler(randomNumberGenerator,
-                    *boundingSphere,
-                    *insideOutsideTester);
-
-    for (long long sampleNum = 0; sampleNum < numSamples; sampleNum++) {
-
-        bool hitObject = false;
-
-        Vector3<double> hitPoint;
-
-        sampler.sample(&hitObject,
-                       &hitPoint);
-
-        if (hitObject) {
-            resultsInterior->recordHit(threadNum,
-                                       hitPoint);
-        }
-        else {
-            resultsInterior->recordMiss(threadNum);
-        }
-
-        if (parameters->getMaxRunTimeWasSet() &&
-            (totalTimer->getTime() > parameters->getMaxRunTime())) {
-
-            break;
-        }
-    }
-}*/
+        int threadNum,
+        Timer const * totalTimer,
+        RandomNumberGenerator * randomNumberGenerator,
+        std::vector<Sphere<double> *> & boundingSpheres,
+        std::vector<int> & numParticles,
+        std::vector<MixedModel<double> *> & particles,
+        OverlapTester<double> const & overlapTester){
+    SamplerVirial<double, RandomNumberGenerator> samplerVirial(parameters, threadNum, totalTimer, randomNumberGenerator, boundingSpheres, numParticles, particles, overlapTester);
+}
 
 /// Prints parameters, results, and (optionally) detailed running time
 /// benchmarks on MPI process 0.
@@ -1397,6 +1441,7 @@ printExactScalar(std::string const & prettyName,
 ///
 void
 savePointFiles(ResultsInterior * resultsInterior,
+	 //      ResultsVirial * resultsVirial,
 	       ResultsZeno * resultsZeno,
 	       Parameters const & parameters) {
 

@@ -39,14 +39,7 @@ set(SOURCE_FILES
   ${SRC_DIR}/ResultsZeno.cc
   ${SRC_DIR}/Timer.cc
   ${SRC_DIR}/Units.cc
-  ${SRC_DIR}/Virials/SamplerVirial.cc
-  ${SRC_DIR}/Virials/IntegratorMSMC.cc
-  ${SRC_DIR}/Virials/MCMove.cc
-  ${SRC_DIR}/Virials/MeterOverlap.cc
-  ${SRC_DIR}/Virials/Particle.cc
-  ${SRC_DIR}/Virials/RandomUtilities.cc
-  ${SRC_DIR}/Virials/OverlapTester.cc
-  ${SRC_DIR}/Virials/ClusterSum.cc src/Virials/alloc2D.h)
+  )
 
 add_executable(zeno ${SOURCE_FILES})
 

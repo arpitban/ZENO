@@ -78,5 +78,6 @@ class SamplerVirial {
   std::vector<MixedModel<T> *> & particles;
   OverlapTester<T> const & overlapTester;
 };
+
 #endif
 
