@@ -39,7 +39,7 @@
 #include "IntegratorMSMC.h"
 
 
-/// Performs calculations to obtain virial coefficients.
+///  Constructs the class to perform a step.
 ///
 
 template <class T,
@@ -87,7 +87,7 @@ IntegratorMSMC<T,
 
 }
 
-/// Computes something.
+/// Carries out a step. A step performed by the integrator consists of selecting a MCMove, performing the trial defined by MCMove and collecting data and statistics.
 ///
 template <class T,
   class RandomNumberGenerator>
@@ -110,6 +110,8 @@ doStep(){
     meterOverlap.collectData();
 }
 
+/// Returns particles.
+///
 template <class T,
         class RandomNumberGenerator>
 std::vector<Particle<T> *>
@@ -118,6 +120,8 @@ getParticles(){
     return particles;
 }
 
+/// Returns random number generator.
+///
 template <class T,
         class RandomNumberGenerator>
 RandomNumberGenerator *
@@ -126,6 +130,8 @@ getRandomNumberGenerator(){
     return randomNumberGenerator;
 }
 
+/// Returns cluster sum.
+///
 template <class T,
         class RandomNumberGenerator>
 ClusterSum<T, RandomNumberGenerator> *
@@ -134,6 +140,8 @@ getClusterSum(){
     return clusterSum;
 }
 
+/// Returns random utilities.
+///
 template <class T,
         class RandomNumberGenerator>
 RandomUtilities<T, RandomNumberGenerator> *
